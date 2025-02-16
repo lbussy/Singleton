@@ -37,7 +37,7 @@ int main() {
     try {
         uint16_t port = 8080; // Port to enforce singleton
         SingletonProcess singleton(port);
-        
+
         if (singleton()) {
             std::cout << "Application running with singleton enforcement on port "
                       << singleton.GetLockFileName() << std::endl;
@@ -48,7 +48,7 @@ int main() {
         std::cerr << "Error: " << e.what() << std::endl;
         return 1;
     }
-    
+
     return 0;
 }
 ```

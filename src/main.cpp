@@ -31,7 +31,7 @@ void test_singleton(uint16_t port)
 
         if (singleton())
         {
-            std::cout << "Singleton instance created successfully on " << singleton.GetLockFileName() << ".\n";
+            std::cout << "Singleton instance created successfully on " << port << ".\n";
         }
         else
         {

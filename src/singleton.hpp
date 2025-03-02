@@ -30,13 +30,15 @@
 #ifndef SINGLETON_H
 #define SINGLETON_H
 
-#include <netinet/in.h>  // sockaddr_in, INADDR_LOOPBACK, htons(), htonl()
 #include <unistd.h>      // close()
 #include <cerrno>        // errno
 #include <string>        // std::string, std::to_string()
 #include <stdexcept>     // std::runtime_error
 #include <system_error>  // std::system_error
 #include <memory>        // std::unique_ptr
+
+#include <netinet/in.h>  // sockaddr_in, INADDR_LOOPBACK, htons(), htonl()
+#include <string.h>      // strerror
 
 /**
  * @class SingletonException
@@ -57,17 +59,16 @@ class SingletonProcess
 {
 public:
     explicit SingletonProcess(uint16_t port)
-        : socket_fd_(nullptr, SocketDeleter{}), rc_(1), port_(port) {}
+        : socket_fd_(-1), port_(port) {}
 
     [[nodiscard]] bool operator()()
     {
-        if (!socket_fd_)
+        if (socket_fd_ == -1)  // Only bind once
         {
-            int sock = socket(AF_INET, SOCK_DGRAM, 0);
-            if (sock < 0)
+            socket_fd_ = socket(AF_INET, SOCK_DGRAM, 0);
+            if (socket_fd_ < 0)
             {
-                throw std::system_error(errno, std::generic_category(),
-                                        "Could not create socket on port " + std::to_string(port_));
+                return false;
             }
 
             struct sockaddr_in name{};
@@ -75,37 +76,28 @@ public:
             name.sin_port = htons(port_);
             name.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
-            if (bind(sock, reinterpret_cast<struct sockaddr *>(&name), sizeof(name)) != 0)
+            if (bind(socket_fd_, reinterpret_cast<struct sockaddr *>(&name), sizeof(name)) != 0)
             {
-                if (errno == EADDRINUSE)
-                {
-                    throw SingletonException("Another instance is already running on port " +
-                                             std::to_string(port_));
-                }
-                throw std::system_error(errno, std::generic_category(),
-                                        "Could not bind to port " + std::to_string(port_));
+                close(socket_fd_);
+                socket_fd_ = -1;
+                return false;
             }
-
-            socket_fd_.reset(new int(sock));
         }
-        return socket_fd_ != nullptr;
+        return socket_fd_ != -1;
+    }
+
+    ~SingletonProcess()
+    {
+        if (socket_fd_ != -1)
+        {
+            close(socket_fd_);
+            socket_fd_ = -1;
+        }
     }
 
 private:
-    struct SocketDeleter
-    {
-        void operator()(int *fd) const
-        {
-            if (fd && *fd != -1)
-            {
-                close(*fd);
-                delete fd;
-            }
-        }
-    };
-
-    std::unique_ptr<int, SocketDeleter> socket_fd_; // Smart pointer for socket cleanup
-    int rc_;
+    int socket_fd_;  // Store the socket for the lifetime of the process
     uint16_t port_;
 };
+
 #endif // SINGLETON_H

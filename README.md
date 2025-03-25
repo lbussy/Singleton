@@ -85,4 +85,4 @@ This project is licensed under the **MIT License**. See [LICENSE.md](LICENSE.md)
 
 ## Author
 
-**Lee C. Bussy (@LBussy)**
+Lee C. Bussy (@LBussy)
